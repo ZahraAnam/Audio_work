@@ -89,11 +89,20 @@ for aud_file in audio_files:
 base_dir = "/home/anam/Desktop/mpi_testing/Comparator"
 Comparator(base_dir,2,"MPILab_0001_252447_01_S_Audio","MPILab_0001_252447_02_P_Video")
 """
-src_file = '/home/anam/Desktop/OutdoorSamplesMPI/00000_00000020201016142243_0001A.mp4'
+
+src_file = '/home/anam/Desktop/Leipzig/AgeGroup_004/260139/Video/MPILab_0001_260139_01_P_Video.mp4'
 filename,ext = os.path.splitext(src_file)
 out_file = filename + ".wav"
 extractor(src_file,out_file)
-src = '/home/anam/Desktop/OutdoorSamplesMPI/191016_1319.mp3'
+
+
+"""
+src_file = '/home/anam/Desktop/Leipzig/AgeGroup_004/260139/Video/MPILab_0001_260139_02_P_Video.mp4'
+filename,ext = os.path.splitext(src_file)
+out_file = filename + ".wav"
+extractor(src_file,out_file)
+src = '/home/anam/Desktop/Leipzig/AgeGroup_004/260139/Audio/MPILab_0001_260139_01_S_Audio.mp3'
 file_name,ext = os.path.splitext(src)
 out_file = file_name + ".wav"
 converter(src,out_file)
+"""
