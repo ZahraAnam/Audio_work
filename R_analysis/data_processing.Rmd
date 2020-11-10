@@ -55,23 +55,32 @@ library(ggthemes)
 
 ```{r setup, include=FALSE}
 
-data <- bind_rows(
-  read_rttm("../Data/00000_00000020201016142243_0001A/all.rttm")%>%mutate(source = "video"),
-  read_rttm("../Data/191016_1319/all.rttm")%>%mutate(source = "audio")
-)
+files <- list.files(path = "../Data",pattern = "all.rttm", recursive = TRUE)%>%
+  str_subset(pattern = c("00000_00000020201016142243_0001A/all.rttm","191016_1319/all.rttm"), negate = T)
 
+raw_data <- data_frame()
+for (f in files) {
+  jd <- read_rttm(paste("../Data/",f,sep=""))
+  source <- str_sub(f,-14,-10)
+  id <- str_sub(f,13,18)
+  data <- jd %>% mutate(id = id, source = source)
+  raw_data <- bind_rows(raw_data, data)
+}
 
 ```
 
 # Visualize by tier and source
 
 ```{r}
-ggplot(data, aes(x = tier, ymin = start, ymax = end, col = source))+
-  geom_linerange(position = position_dodge(width = 0.5), size = 5)+
+ggplot(raw_data, aes(x = tier, ymin = start, ymax = end, col = source))+
+  geom_linerange(position = position_dodge(width = 0.9), size = 4)+
   coord_flip()+
   #geom_segment(aes(x = start, y = tier, xend = end, yend = tier), size = 5, position = posi)+
   theme_minimal()+
-  ylim(0,100)+
+  facet_grid(id~.)+
+  #ylim(0,100)+
   scale_color_ptol()
+
+ggsave("./plots/audio_video_comparison.png", width = 12, height = 16, scale = 1)
 ```
 
