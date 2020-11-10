@@ -8,10 +8,12 @@ import moviepy.editor as mp
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import waterfall_chart
+#import waterfall_chart
 
 def extractor(p_in,p_out):
+    print('In Extractor')
     clip =  mp.VideoFileClip(p_in)
+    print(p_out)
     clip.audio.write_audiofile(p_out)
     return
 
@@ -65,21 +67,25 @@ def Comparator(base_dir,n,*argv):
         nx=nx+1
     plt.show()
     return
-base_dir = "/home/anam/Desktop/Audio_vs_Video/Video/Vidz"
-src_files = glob.iglob("/home/anam/Desktop/Audio_vs_Video/Video/Vidz/*.mp4")
-#src_f = (/home/anam/Desktop/Audio_vs_Video/Video/Vidz/20201001_PatrolEyes_Vid2_252447.mp4)
 """
+src_files = glob.iglob("/home/anam/Desktop/mpi_testing/video/252447/*.mp4")
+
 for src in src_files:
+
     filename,ext = os.path.splitext (src)
     out_file = filename + ".wav"
     extractor(src,out_file)
-"""
 
-audio_files = glob.glob("/home/anam/Desktop/Audio_vs_Video/AUDIOS/*.mp3")
+    
+
+
+audio_files = glob.glob("/home/anam/Desktop/mpi_testing/audio/252447/*.mp3")
 print(audio_files)
-for file in audio_files:
-    os.system(f"""ffmpeg -i {file} -acodec pcm_u8 -ar 22050 {file[:-4]}.wav""")  
-
-base_dir = "/home/anam/Desktop/Audio_vs_Video/Analytics"
-Comparator(base_dir,2,"20200902_Boblov_Vid1_258640","20200902_sony_audio_258640")
+for aud_file in audio_files:
+    filename,ext = os.path.splitext (aud_file)
+    out_file = filename + ".wav"
+    converter(aud_file,out_file)
+"""
+base_dir = "/home/anam/Desktop/mpi_testing/Comparator"
+Comparator(base_dir,2,"MPILab_0001_252447_01_S_Audio","MPILab_0001_252447_02_P_Video")
 
