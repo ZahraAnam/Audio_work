@@ -1,0 +1,77 @@
+---
+title: "audio processing"
+output: html_document
+---
+
+```{r}
+read_rttm <- function(x,
+                      from = NULL,
+                      to = NULL) {
+  if (length(readLines(x)) > 0) {
+    res <- read.table(x, header = FALSE)
+    colnames(res)[c(4, 5, 8)] <- c("start", "duration", "tier")
+    res$end <- res$start + res$duration
+  } else {
+    res <- matrix(0, nrow = 0, ncol = 10)
+    # res[1, ] <- NA
+    colnames(res) <- paste0("V", 1:ncol(res))
+    colnames(res)[c(4, 5, 8, 10)] <- c("start", "duration", "tier", "end")
+    res <- data.frame(res)
+  }
+
+  if (!is.null(from)) {
+    res <- res[res$end > from, ]
+    if (nrow(res) > 0) {
+      if (res$start[1] < from) {
+        res$start[1] <- from
+        res$duration[1] <- res$end[1] - res$start[1]
+      }
+    }
+  }
+
+  if (!is.null(to)) {
+    res <- res[res$start < to, ]
+    if (nrow(res) > 0) {
+      if (res$end[nrow(res)] > to) {
+        res$end[nrow(res)] <- to
+        res$duration[nrow(res)] <- res$end[nrow(res)] - res$start[nrow(res)]
+      }
+    }
+  }
+
+
+  attributes(res)$filename <- basename(x)
+  rownames(res) <- NULL
+  res
+}
+```
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+```
+
+# Read data
+
+```{r setup, include=FALSE}
+
+data <- bind_rows(
+  read_rttm("../Data/00000_00000020201016142243_0001A/all.rttm")%>%mutate(source = "video"),
+  read_rttm("../Data/191016_1319/all.rttm")%>%mutate(source = "audio")
+)
+
+
+```
+
+# Visualize by tier and source
+
+```{r}
+ggplot(data, aes(x = tier, ymin = start, ymax = end, col = source))+
+  geom_linerange(position = position_dodge(width = 0.5), size = 5)+
+  coord_flip()+
+  #geom_segment(aes(x = start, y = tier, xend = end, yend = tier), size = 5, position = posi)+
+  theme_minimal()+
+  ylim(0,100)+
+  scale_color_ptol()
+```
+
