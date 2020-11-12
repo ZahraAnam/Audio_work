@@ -49,6 +49,7 @@ read_rttm <- function(x,
 ```{r}
 library(tidyverse)
 library(ggthemes)
+library(ggpubr)
 ```
 
 # Read data
@@ -84,3 +85,64 @@ ggplot(raw_data, aes(x = tier, ymin = start, ymax = end, col = source))+
 ggsave("./plots/audio_video_comparison.png", width = 12, height = 16, scale = 1)
 ```
 
+# Compare performance 
+```{r}
+comp_data <- raw_data %>%
+  group_by(source, id)%>%
+  summarise(length = max(end))%>%
+  group_by(id)%>%
+  summarise(length = min(length))%>%
+  right_join(raw_data)%>%
+  group_by(id)%>%
+  filter(end < length)
+
+```
+
+## Correlation
+```{r}
+p_comp_data <- comp_data %>%
+  group_by(id,source,tier)%>%
+  summarise(count = n(),
+            dur = sum(duration))%>%
+  gather(type, value, -id, -source, -tier)%>%
+  spread(source, value)
+
+ 
+ggplot(p_comp_data, aes(x = Audio, y = Video))+
+  geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 1, size = .5)+
+  geom_point(alpha = .5)+
+  facet_wrap(type ~ tier, scales = "free",nrow = 2)+
+  stat_cor(method = "pearson",  aes(x = Audio, y = Video, label = paste(..rr.label..)), inherit.aes = F, size = 3)+
+  theme_minimal()+
+  theme(aspect.ratio = 1)
+  
+
+ggsave("./plots/audio_video_correlation.png", width = 12, height = 4, scale = 1)
+```
+
+## Absolute difference
+
+```{r}
+p_comp_data_abs <- comp_data %>%
+  group_by(id,source,tier)%>%
+  summarise(count = n(),
+            duration = sum(duration))%>%
+  gather(type, value, -id, -source, -tier)%>%
+  spread(source, value)%>%
+  mutate(diff = Audio - Video)
+
+ 
+ggplot(p_comp_data_abs, aes(x = id, y = diff, col = tier))+
+  geom_segment(aes(x = id, y = 0, xend = id, yend = diff), alpha = .5, col = "black")+
+  geom_hline(yintercept = 0, lty = 2, alpha = .5)+
+  geom_point(alpha = .5)+
+  ylab("Audio - Video")+
+  #geom_histogram(stat = "identity",alpha = .5)+
+  facet_grid(tier ~type )+
+  theme_minimal()+
+  guides(x =  guide_axis(angle = 90))+
+  scale_color_ptol()
+  
+
+ggsave("./plots/audio_video_diff.png", width = 5, height = 6, scale = 1)
+```
