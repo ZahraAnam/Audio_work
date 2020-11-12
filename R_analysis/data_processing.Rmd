@@ -56,18 +56,19 @@ library(ggpubr)
 
 ```{r setup, include=FALSE}
 
-files <- list.files(path = "../Data",pattern = "all.rttm", recursive = TRUE)%>%
+files <- list.files(path = "../Data/raw_data",pattern = "all.rttm", recursive = TRUE)%>%
   str_subset(pattern = c("00000_00000020201016142243_0001A/all.rttm","191016_1319/all.rttm"), negate = T)
 
 raw_data <- data_frame()
 for (f in files) {
-  jd <- read_rttm(paste("../Data/",f,sep=""))
+  jd <- read_rttm(paste("../Data/raw_data/",f,sep=""))
   source <- str_sub(f,-14,-10)
   id <- str_sub(f,13,18)
   data <- jd %>% mutate(id = id, source = source)
   raw_data <- bind_rows(raw_data, data)
 }
 
+write_csv(raw_data, "../Data/merged_data/audio_video_comparison.csv")
 ```
 
 # Visualize by tier and source
