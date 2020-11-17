@@ -157,10 +157,11 @@ library(writexl)
 
 raw_data %>%
   filter(tier == "CHI")%>%
-  mutate(check = "")%>%
-  select(id, source, tier, start,check)%>%
+  mutate(check = "",
+         comment = "")%>%
+  select(id, source, tier, start,check, comment)%>%
   group_by(source,id) %>%
-  group_walk(~ write_csv(.x, paste0("../Data/merged_data/hand_check/",.y$id,"_",.y$source, ".xlsx")))
+  group_walk(~ write_xlsx(.x, paste0("../Data/merged_data/hand_check/",.y$id,"_",.y$source, ".xlsx")))
 
 ```
 
