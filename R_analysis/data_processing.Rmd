@@ -56,14 +56,14 @@ library(ggpubr)
 
 ```{r setup, include=FALSE}
 
-files <- list.files(path = "../Data/raw_data",pattern = "all.rttm", recursive = TRUE)%>%
+files <- list.files(path = "../Data/Rttm_Data",pattern = "all.rttm", recursive = TRUE)%>%
   str_subset(pattern = c("00000_00000020201016142243_0001A/all.rttm","191016_1319/all.rttm"), negate = T)
 
 raw_data <- data_frame()
 for (f in files) {
-  jd <- read_rttm(paste("../Data/raw_data/",f,sep=""))
+  jd <- read_rttm(paste("../Data/Rttm_Data/",f,sep=""))
   source <- str_sub(f,-14,-10)
-  id <- str_sub(f,13,18)
+  id <- str_sub(f,14,19)
   data <- jd %>% mutate(id = id, source = source)
   raw_data <- bind_rows(raw_data, data)
 }
@@ -147,3 +147,21 @@ ggplot(p_comp_data_abs, aes(x = id, y = diff, col = tier))+
 
 ggsave("./plots/audio_video_diff.png", width = 5, height = 6, scale = 1)
 ```
+
+# Hand checked data
+
+## Export hand check data for CHI tier
+
+```{r}
+library(writexl)
+
+raw_data %>%
+  filter(tier == "CHI")%>%
+  mutate(check = "",
+         comment = "")%>%
+  select(id, source, tier, start,check, comment)%>%
+  group_by(source,id) %>%
+  group_walk(~ write_xlsx(.x, paste0("../Data/merged_data/hand_check/",.y$id,"_",.y$source, ".xlsx")))
+
+```
+
