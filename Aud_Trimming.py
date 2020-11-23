@@ -19,8 +19,9 @@ def rttm_data_extractor(rttm_file):
     rttm_data_frame = pd.DataFrame(data=new_rttm_data,columns=['Audio_ID','Onset','Duration','Gender'])
     return rttm_data_frame
 def audio_trimmer(rttm_frame,aud_file,output_direc):
-    tfm = sox.Transformer()
+    
     for ind,row in rttm_frame.iterrows():
+        tfm = sox.Transformer()
         aud_file_name , ext = os.path.splitext(aud_file)
         direc,aud_file_name = os.path.split(aud_file_name)
         start_t = row['Onset']
@@ -30,6 +31,7 @@ def audio_trimmer(rttm_frame,aud_file,output_direc):
         end_t = start_t + dur
         tfm.trim(start_t,end_t)
         tfm.build(aud_file,op_path)
+
     return
 
 
