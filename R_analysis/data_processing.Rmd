@@ -50,12 +50,15 @@ read_rttm <- function(x,
 library(tidyverse)
 library(ggthemes)
 library(ggpubr)
+library(readxl)
+library(tidyboot)
+library(lme4)
+library(lubridate)
 ```
 
 # Read data
 
-```{r setup, include=FALSE}
-
+```{r}
 files <- list.files(path = "../Data/Rttm_Data",pattern = "all.rttm", recursive = TRUE)%>%
   str_subset(pattern = c("00000_00000020201016142243_0001A/all.rttm","191016_1319/all.rttm"), negate = T)
 
@@ -69,6 +72,10 @@ for (f in files) {
 }
 
 write_csv(raw_data, "../Data/merged_data/audio_video_comparison.csv")
+
+raw_data <- read_csv("../Data/merged_data/audio_video_comparison.csv")%>%
+  mutate(frequency = "144kHz",
+         id = factor(id))
 ```
 
 # Visualize by tier and source
@@ -114,6 +121,7 @@ ggplot(p_comp_data, aes(x = Audio, y = Video))+
   geom_point(alpha = .5)+
   facet_wrap(type ~ tier, scales = "free",nrow = 2)+
   stat_cor(method = "pearson",  aes(x = Audio, y = Video, label = paste(..rr.label..)), inherit.aes = F, size = 3)+
+  ggtitle("144kHZ")+
   theme_minimal()+
   theme(aspect.ratio = 1)
   
@@ -138,6 +146,7 @@ ggplot(p_comp_data_abs, aes(x = id, y = diff, col = tier))+
   geom_hline(yintercept = 0, lty = 2, alpha = .5)+
   geom_point(alpha = .5)+
   ylab("Audio - Video")+
+  ggtitle("144kHZ")+
   #geom_histogram(stat = "identity",alpha = .5)+
   facet_grid(tier ~type )+
   theme_minimal()+
@@ -164,4 +173,267 @@ raw_data %>%
   group_walk(~ write_xlsx(.x, paste0("../Data/merged_data/hand_check/",.y$id,"_",.y$source, ".xlsx")))
 
 ```
+
+## Evaluate hand-checked data
+
+```{r}
+files <- list.files(path = "../Data/hand_check/",pattern = "*.xlsx", recursive = TRUE)
+
+raw_data <- data_frame()
+for (f in files) {
+  jd <- read_xlsx(paste("../Data/hand_check/",f,sep=""))
+  id <- str_sub(f,0,6)
+  source <- str_sub(f,-10,-6)
+  data <- jd %>% mutate(id = id, source = source)
+  raw_data <- bind_rows(raw_data, data)
+}
+
+
+check_data <- raw_data %>%
+  filter(id != "260584")
+
+model <- glmer(check ~ source + (1|id),
+      data = check_data, 
+      family = binomial)
+
+summary(model)
+
+drop1(model, test = "Chisq")
+
+p1 <- check_data %>%
+  group_by(id, source)%>%
+  summarise(mean = mean(check))
+
+
+p2 <- p1 %>%
+  group_by(source)%>%
+  tidyboot_mean(column = mean)
+
+ggplot()+
+  geom_line(data = p1, aes(x = source, y = mean, group = id), alpha = .3)+
+  geom_point(data = p1, aes(x = source, y = mean, col = source), alpha = .5)+
+  geom_pointrange(data = p2, aes(x = source, y = mean, col = source, ymin = ci_lower, ymax = ci_upper), pch = 5, size = 1, stroke = 2)+
+  labs(y = "Proportion match")+
+  scale_color_ptol()+
+  theme_minimal()
+```
+# Re-sampled data
+
+## compare 16kHz to 144kHz
+```{r}
+files <- list.files(path = "../Data/Resampled_Rttm",pattern = "all.rttm", recursive = TRUE)
+
+raw_data_16khz <- data_frame()
+for (f in files) {
+  jd <- read_rttm(paste("../Data/Resampled_Rttm/",f,sep=""))
+  source <- str_sub(f,-14,-10)
+  id <- str_sub(f,14,19)
+  data <- jd %>% mutate(id = id, source = source)
+  raw_data_16khz <- bind_rows(raw_data_16khz, data)
+}
+
+write_csv(raw_data_16khz, "../Data/merged_data/audio_video_comparison_resampled.csv")
+
+raw_data_16khz <- read_csv("../Data/merged_data/audio_video_comparison_resampled.csv")%>%
+  mutate(frequency = "16kHz")%>%
+  mutate(id = factor(id))
+```
+
+```{r}
+comp_data_samp <- bind_rows(
+  raw_data_16khz,
+  raw_data
+)
+
+p_comp_data_samp <- comp_data_samp %>%
+  group_by(id,source, frequency, tier)%>%
+  summarise(count = n(),
+            duration = sum(duration))%>%
+  gather(type, value, -id, -source,-frequency, -tier)%>%
+  spread(frequency, value)%>%
+  mutate(diff = `144kHz` - `16kHz`)
+
+ 
+ggplot(p_comp_data_samp, aes(x = `144kHz`, y = `16kHz`, col = source))+
+  geom_point(alpha = .5)+
+  geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 1, size = .5)+
+  labs(x = "144kHz" ,y = "16kHz")+
+  stat_cor(method = "pearson", aes(x = `144kHz`, y = `16kHz`), inherit.aes = F)+
+  #geom_histogram(stat = "identity",alpha = .5)+
+  facet_grid(type ~tier)+
+  theme_minimal()+
+  scale_color_ptol()+
+  coord_fixed()
+
+ggsave("./plots/freq_diff.png", width = 12, height = 6, scale = 1.2)
+```
+
+## compare audio and video with 144 kHz
+
+```{r}
+comp_data <- raw_data_16khz %>%
+  group_by(source, id)%>%
+  summarise(length = max(end))%>%
+  group_by(id)%>%
+  summarise(length = min(length))%>%
+  right_join(raw_data_16khz)%>%
+  group_by(id)%>%
+  filter(end < length)
+
+```
+
+### Correlation
+```{r}
+p_comp_data <- comp_data %>%
+  group_by(id,source,tier)%>%
+  summarise(count = n(),
+            dur = sum(duration))%>%
+  gather(type, value, -id, -source, -tier)%>%
+  spread(source, value)
+
+ 
+ggplot(p_comp_data, aes(x = Audio, y = Video))+
+  geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 1, size = .5)+
+  geom_point(alpha = .5)+
+  facet_wrap(type ~ tier, scales = "free",nrow = 2)+
+  stat_cor(method = "pearson",  aes(x = Audio, y = Video, label = paste(..rr.label..)), inherit.aes = F, size = 3)+
+  ggtitle("16kHZ")+
+  theme_minimal()+
+  theme(aspect.ratio = 1)
+  
+
+ggsave("./plots/audio_video_correlation_16kHz.png", width = 12, height = 4, scale = 1)
+```
+
+## Absolute difference
+
+```{r}
+p_comp_data_abs <- comp_data %>%
+  group_by(id,source,tier)%>%
+  summarise(count = n(),
+            duration = sum(duration))%>%
+  gather(type, value, -id, -source, -tier)%>%
+  spread(source, value)%>%
+  mutate(diff = Audio - Video)
+
+ 
+ggplot(p_comp_data_abs, aes(x = id, y = diff, col = tier))+
+  geom_segment(aes(x = id, y = 0, xend = id, yend = diff), alpha = .5, col = "black")+
+  geom_hline(yintercept = 0, lty = 2, alpha = .5)+
+  geom_point(alpha = .5)+
+  ylab("Audio - Video")+
+  ggtitle("16kHZ")+
+  facet_grid(tier ~type )+
+  theme_minimal()+
+  guides(x =  guide_axis(angle = 90))+
+  scale_color_ptol()
+  
+
+ggsave("./plots/audio_video_diff_16kHz.png", width = 5, height = 6, scale = 1)
+```
+
+# Re-run model
+
+```{r}
+files <- list.files(path = "../Data/Orig_Rttm",pattern = "all.rttm", recursive = TRUE)%>%
+  str_subset(pattern = c("00000_00000020201016142243_0001A/all.rttm","191016_1319/all.rttm"), negate = T)
+
+raw_data_run2 <- data_frame()
+for (f in files) {
+  jd <- read_rttm(paste("../Data/Orig_Rttm/",f,sep=""))
+  source <- str_sub(f,-14,-10)
+  id <- str_sub(f,14,19)
+  data <- jd %>% mutate(id = id, source = source)
+  raw_data_run2 <- bind_rows(raw_data_run2, data)
+}
+
+write_csv(raw_data_run2, "../Data/merged_data/audio_video_comparison_run2.csv")
+
+raw_data_run2 <- read_csv("../Data/merged_data/audio_video_comparison_run2.csv")%>%
+  mutate(run = "run2",
+         id = factor(id))
+```
+
+## compare 2 model runs
+
+```{r}
+comp_data_run <- bind_rows(
+  raw_data %>% mutate(run = "run1"),
+  raw_data_run2
+)
+
+raw_data
+
+```
+
+### Correlation
+```{r}
+p_comp_data_run <- comp_data_run %>%
+  group_by(id,source,tier,run)%>%
+  summarise(count = n(),
+            dur = sum(duration))%>%
+  gather(type, value, -id, -source, -tier, -run)%>%
+  spread(run, value)
+
+ 
+ggplot(p_comp_data_run, aes(x = run1, y = run2))+
+  geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 1, size = .5)+
+  geom_point(alpha = .5)+
+  facet_wrap(source + type ~ tier, scales = "free",nrow = 2)+
+  stat_cor(method = "pearson",  aes(x = run1, y = run2))+
+  theme_minimal()+
+  theme(aspect.ratio = 1)
+  
+
+ggsave("./plots/model_re_run.png", width = 20, height = 8, scale = 1)
+```
+
+## Absolute difference
+
+```{r}
+p_comp_data_abs_run <- comp_data_run %>%
+  group_by(id,source,tier, run)%>%
+  summarise(count = n(),
+            duration = sum(duration))%>%
+  gather(type, value, -id, -source, -tier,-run)%>%
+  spread(run, value)%>%
+  mutate(diff = run1 - run2)
+
+ 
+ggplot(p_comp_data_abs_run, aes(x = id, y = diff, col = tier))+
+  geom_segment(aes(x = id, y = 0, xend = id, yend = diff), alpha = .5, col = "black")+
+  geom_hline(yintercept = 0, lty = 2, alpha = .5)+
+  geom_point(alpha = .5)+
+  ylab("Run1 - Run2")+
+  facet_grid(tier ~type )+
+  theme_minimal()+
+  guides(x =  guide_axis(angle = 90))+
+  scale_color_ptol()
+  
+
+ggsave("./plots/audio_video_diff_run.png", width = 5, height = 6, scale = 1)
+```
+
+
+# Check storytime 
+```{r}
+story_time <- read_rttm("../Data/one_shot_data/storytime.rttm")
+
+
+ggplot(story_time, aes(x = tier, ymin = start/60, ymax = end/60, col = tier))+
+  geom_linerange(position = position_dodge(width = 0.9), size = 4)+
+  coord_flip()+
+  #geom_segment(aes(x = start, y = tier, xend = end, yend = tier), size = 5, position = posi)+
+  theme_minimal()+
+  #ylim(0,100)+
+  scale_color_ptol()
+
+story_time %>%
+  mutate(start =seconds_to_period(start),
+         end = seconds_to_period(end))%>%
+  filter( tier == "FEM")
+  
+  
+```
+
 
