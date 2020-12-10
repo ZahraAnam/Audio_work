@@ -435,5 +435,63 @@ story_time %>%
   
   
 ```
+# Audio video comparison outdoor
 
+
+```{r}
+files <- list.files(path = "../Data/outdoor_test/",pattern = "all.rttm", recursive = TRUE)
+
+raw_out_data <- data_frame()
+for (f in files) {
+  jd <- read_rttm(paste("../Data/outdoor_test/",f,sep=""))
+  source <- str_sub(f,-14,-10)
+  id <- str_sub(f,14,19)
+  data <- jd %>% mutate(id = id, source = source)
+  raw_out_data <- bind_rows(raw_out_data, data)
+}
+
+
+out_data <- raw_out_data %>%
+  group_by(source)%>%
+  summarise(length = max(end),
+            stop = min(length))%>%
+  right_join(raw_out_data)%>%
+  filter(end < 580)
+
+```
+
+
+```{r}
+ggplot(out_data, aes(x = tier, ymin = start/60, ymax = end/60, col = source))+
+  geom_linerange(position = position_dodge(width = 0.9), size = 4)+
+  coord_flip()+
+  #geom_segment(aes(x = start, y = tier, xend = end, yend = tier), size = 5, position = posi)+
+  theme_minimal()+
+  #ylim(0,100)+
+  scale_color_ptol()
+  
+  
+```
+```{r}
+p_out_data <- out_data %>%
+  group_by(source,tier)%>%
+  summarise(count = n(),
+            duration = sum(duration))%>%
+  gather(type, value, -source, -tier)%>%
+  spread(source, value)%>%
+  mutate(diff = Audio - Video)
+
+ 
+ggplot(p_out_data, aes(x = tier, y = diff, col = tier))+
+  geom_segment(aes(x = tier, y = 0, xend = tier, yend = diff), alpha = .5, col = "black")+
+  geom_hline(yintercept = 0, lty = 2, alpha = .5)+
+  geom_point(alpha = .5)+
+  ylab("Audio - Video")+
+  ggtitle("144kHZ")+
+  #geom_histogram(stat = "identity",alpha = .5)+
+  facet_grid(type~. )+
+  theme_minimal()+
+  guides(x =  guide_axis(angle = 90))+
+  scale_color_ptol()
+```
 
