@@ -81,16 +81,18 @@ raw_data <- read_csv("../Data/merged_data/audio_video_comparison.csv")%>%
 # Visualize by tier and source
 
 ```{r}
-ggplot(raw_data, aes(x = tier, ymin = start, ymax = end, col = source))+
+raw_data%>%
+  filter(id =="252957")%>%
+ggplot(., aes(x = tier, ymin = start, ymax = end, col = source))+
   geom_linerange(position = position_dodge(width = 0.9), size = 4)+
   coord_flip()+
   #geom_segment(aes(x = start, y = tier, xend = end, yend = tier), size = 5, position = posi)+
   theme_minimal()+
-  facet_grid(id~.)+
+  #facet_grid(id~.)+
   #ylim(0,100)+
   scale_color_ptol()
 
-ggsave("./plots/audio_video_comparison.png", width = 12, height = 16, scale = 1)
+ggsave("./plots/audio_video_comparison_single.png", width = 10, height = 6, scale = 0.75)
 ```
 
 # Compare performance 
@@ -104,6 +106,8 @@ comp_data <- raw_data %>%
   group_by(id)%>%
   filter(end < length)
 
+
+unique(raw_data$id)
 ```
 
 ## Correlation
